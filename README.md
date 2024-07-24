@@ -1,5 +1,5 @@
 ## to do
-- [ ] connect gpt
+- [x] connect gpt
 - [ ] get youtube
 - [ ] menu
 - [ ] character

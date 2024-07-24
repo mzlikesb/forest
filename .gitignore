@@ -10,3 +10,4 @@
 *.sln
 *.code-workspace
 .vsconfig
+apikey.txt
