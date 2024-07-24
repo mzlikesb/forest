@@ -1,0 +1,12 @@
+/.vs
+/.vscode
+/Binaries
+/Plugins
+/Build
+/Saved
+/Intermediate
+/DerivedDataCache
+
+*.sln
+*.code-workspace
+.vsconfig
