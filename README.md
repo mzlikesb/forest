@@ -1,9 +1,8 @@
 ## to do
 - [x] connect gpt
-- [ ] get youtube
-- [ ] menu
-- [ ] character
-- [ ] locomotion
-- [ ] environment
+- [x] character
+- [ ] chat
 - [ ] interaction
-- [ ] effect
+- [ ] environment (light, effect)
+- [ ] BGM
+- [ ] place
