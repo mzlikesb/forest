@@ -26,4 +26,6 @@ private:
 	void OnResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 
 	FString LoadApiKeyFromFile();
+
+	TSharedPtr<FJsonObject> Deserialize(FString String);
 };

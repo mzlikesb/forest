@@ -31,17 +31,21 @@ void AGPTClient::SendChatGPTRequest(const FString& SystemPrompt, const FString& 
     JsonObject->SetStringField("model", "gpt-4o-mini");
 
     TArray<TSharedPtr<FJsonValue>> MessagesArray;
-    TSharedPtr<FJsonObject> MessageObject1 = MakeShareable(new FJsonObject);
-    MessageObject1->SetStringField("role", "system");
-    MessageObject1->SetStringField("content", SystemPrompt);
-    MessagesArray.Add(MakeShareable(new FJsonValueObject(MessageObject1)));
+    TSharedPtr<FJsonObject> SystemMessage = MakeShareable(new FJsonObject);
+    SystemMessage->SetStringField("role", "system");
+    SystemMessage->SetStringField("content", SystemPrompt + TEXT(" Please use JSON format for the response."));
+    MessagesArray.Add(MakeShareable(new FJsonValueObject(SystemMessage)));
 
-    TSharedPtr<FJsonObject> MessageObject2 = MakeShareable(new FJsonObject);
-    MessageObject2->SetStringField("role", "user");
-    MessageObject2->SetStringField("content", UserPrompt);
-    MessagesArray.Add(MakeShareable(new FJsonValueObject(MessageObject2)));
+    TSharedPtr<FJsonObject> UserMessage = MakeShareable(new FJsonObject);
+    UserMessage->SetStringField("role", "user");
+    UserMessage->SetStringField("content", UserPrompt);
+    MessagesArray.Add(MakeShareable(new FJsonValueObject(UserMessage)));
 
     JsonObject->SetArrayField("messages", MessagesArray);
+
+    TSharedPtr<FJsonObject> ResponseFormatObject = MakeShareable(new FJsonObject);
+    ResponseFormatObject->SetStringField("type", "json_object");
+    JsonObject->SetObjectField("response_format", ResponseFormatObject);
 
     FString RequestBody;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&RequestBody);
@@ -58,25 +62,39 @@ void AGPTClient::OnResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Re
     {
         FString ResponseString = Response->GetContentAsString();
         UE_LOG(LogTemp, Log, TEXT("Response: %s"), *ResponseString);
-
-        TSharedPtr<FJsonObject> JsonObject;
-        TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseString);
-
-        if (FJsonSerializer::Deserialize(Reader, JsonObject))
-        {
+        try {
+            TSharedPtr<FJsonObject> JsonObject = Deserialize(ResponseString);
             TArray<TSharedPtr<FJsonValue>> Choices = JsonObject->GetArrayField("choices");
-            if (Choices.Num() > 0)
+            if (Choices.IsEmpty())
             {
-                TSharedPtr<FJsonObject> Choice = Choices[0]->AsObject();
-                TSharedPtr<FJsonObject> Message = Choice->GetObjectField("message");
-                FString Content = Message->GetStringField("content");
+                UE_LOG(LogTemp, Error, TEXT("Invalid choice object."));
+                return;
+            }
+            TSharedPtr<FJsonObject> Choice = Choices[0]->AsObject();
+            TSharedPtr<FJsonObject> Message = Choice->GetObjectField("message");
+            FString Content = Message->GetStringField("content");
 
+            TSharedPtr<FJsonObject> ContentObject = Deserialize(Content);
+            TArray<TSharedPtr<FJsonValue>> Keywords = ContentObject->GetArrayField("Keywords");
+                
+            if (Keywords.IsEmpty())
+            {
+                UE_LOG(LogTemp, Error, TEXT("No keywords found."));
+                return;
+            }
+            TSharedPtr<FJsonValue> FirstKeyword = Keywords[0];
 
-                UE_LOG(LogTemp, Log, TEXT("Response: %s"), *Content);
-                OnChatGPTResponse.Broadcast(Content);
+            if (FirstKeyword->Type == EJson::String)
+            {
+                FString FirstKeywordString = FirstKeyword->AsString();
+                UE_LOG(LogTemp, Log, TEXT("Keywords: %s"), *FirstKeywordString);
+
+                OnChatGPTResponse.Broadcast(FirstKeywordString);
             }
         }
-        
+        catch(...) {
+            UE_LOG(LogTemp, Error, TEXT("fail to find keywords"));
+        }
     }
     else
     {
@@ -99,4 +117,16 @@ FString AGPTClient::LoadApiKeyFromFile()
     }
 
     return ApiKey;
+}
+
+TSharedPtr<FJsonObject> AGPTClient::Deserialize(FString String) {
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(String);
+
+    if (FJsonSerializer::Deserialize(Reader, JsonObject)) {
+        return JsonObject;
+    }
+    else {
+        return nullptr;
+    }
 }

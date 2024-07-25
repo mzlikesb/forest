@@ -6,8 +6,10 @@
 /Saved
 /Intermediate
 /DerivedDataCache
+/enc_temp_folder
 
 *.sln
 *.code-workspace
 .vsconfig
+
 apikey.txt
