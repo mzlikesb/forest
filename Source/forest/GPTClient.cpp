@@ -64,18 +64,18 @@ void AGPTClient::OnResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Re
         UE_LOG(LogTemp, Log, TEXT("Response: %s"), *ResponseString);
         try {
             TSharedPtr<FJsonObject> JsonObject = Deserialize(ResponseString);
-            TArray<TSharedPtr<FJsonValue>> Choices = JsonObject->GetArrayField("choices");
+            TArray<TSharedPtr<FJsonValue>> Choices = JsonObject->GetArrayField((TEXT("choices")));
             if (Choices.IsEmpty())
             {
                 UE_LOG(LogTemp, Error, TEXT("Invalid choice object."));
                 return;
             }
             TSharedPtr<FJsonObject> Choice = Choices[0]->AsObject();
-            TSharedPtr<FJsonObject> Message = Choice->GetObjectField("message");
-            FString Content = Message->GetStringField("content");
+            TSharedPtr<FJsonObject> Message = Choice->GetObjectField(TEXT("message"));
+            FString Content = Message->GetStringField(TEXT("content"));
 
             TSharedPtr<FJsonObject> ContentObject = Deserialize(Content);
-            TArray<TSharedPtr<FJsonValue>> Keywords = ContentObject->GetArrayField("Keywords");
+            TArray<TSharedPtr<FJsonValue>> Keywords = ContentObject->GetArrayField(TEXT("Keywords"));
                 
             if (Keywords.IsEmpty())
             {
