@@ -1,8 +1,8 @@
 ## to do
 - [x] connect gpt
 - [x] character
-- [ ] chat
-- [ ] interaction
+- [x] chat
+- [x] interaction
 - [ ] environment (light, effect)
 - [ ] BGM
 - [ ] place
