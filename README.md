@@ -3,6 +3,9 @@
 - [x] character
 - [x] chat
 - [x] interaction
-- [ ] environment (light, effect)
-- [ ] BGM
-- [ ] place
+- [x] environment (light, effect)
+- [x] npc
+- [ ] voice recognition
+- [ ] tts
+- [ ] lip sync
+- [ ] dynamic environment by reaction (light, effect, shape, BGM)
