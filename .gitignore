@@ -1,12 +1,17 @@
 /.vs
 /.vscode
 /Binaries
-/Plugins
 /Build
 /Saved
 /Intermediate
 /DerivedDataCache
 /enc_temp_folder
+
+/Plugins/OVRLipSync/Binaries
+/Plugins/OVRLipSync/Intermediate
+/Plugins/OVRLipSync/OfflineModel
+/Plugins/OVRLipSync/ThirdParty
+
 
 *.sln
 *.code-workspace
