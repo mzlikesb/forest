@@ -1,13 +1,12 @@
 ## to do
 - [x] connect gpt
 - [x] character
-- [x] chat
 - [x] interaction
 - [x] environment (light, effect)
 - [x] npc
-- [ ] voice recognition
+- [x] voice recognition
 - [ ] tts
-- [ ] lip sync
+- [x] lip sync
 - [ ] dynamic environment by reaction (light, effect, shape, BGM)
 
 
