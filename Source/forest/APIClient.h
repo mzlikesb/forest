@@ -8,8 +8,8 @@
 #include "APIClient.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChatGPTResponse, const FString&, Text);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWhisperResponse, const FString&, Text);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTTSResponse, const FString&, Text);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FOREST_API UAPIClient : public UActorComponent
@@ -25,14 +25,24 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SendWhisperRequest(const FString& AudioFilePath);
 
+	UFUNCTION(BlueprintCallable)
+	void SendTTSRequest(const FString& Text);
+	
+	UFUNCTION(BlueprintCallable)
+	USoundWaveProcedural* LoadSoundWaveFromFile(const FString& FilePath);
+
 	UPROPERTY(BlueprintAssignable)
 	FOnChatGPTResponse OnChatGPTResponse;
 
 	UPROPERTY(BlueprintAssignable)
 	FOnWhisperResponse OnWhisperResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnTTSResponse OnTTSResponse;
 private:
 	void OnChatGPTResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 	void OnWhisperResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	void OnTTSResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 	
 	void AppendStringToArray(TArray<uint8>& Array, const FString& String);
 

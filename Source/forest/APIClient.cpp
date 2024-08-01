@@ -5,6 +5,10 @@
 #include "Http.h"
 #include "Json.h"
 #include "JsonUtilities.h"
+#include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
+#include "Sound/SoundWaveProcedural.h"
+#include <sstream> 
 
 UAPIClient::UAPIClient()
 {
@@ -109,6 +113,38 @@ void UAPIClient::SendWhisperRequest(const FString& AudioFilePath)
     Request->ProcessRequest();
 }
 
+void UAPIClient::SendTTSRequest(const FString& Text)
+{
+    FString ApiKey = LoadApiKeyFromFile();
+    if (ApiKey.IsEmpty())
+    {
+        UE_LOG(LogTemp, Error, TEXT("API Key is missing!"));
+        return;
+    }
+
+    TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+
+    Request->OnProcessRequestComplete().BindUObject(this, &UAPIClient::OnTTSResponseReceived);
+    Request->SetURL("https://api.openai.com/v1/audio/speech");
+    Request->SetVerb("POST");
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("Authorization", FString::Printf(TEXT("Bearer %s"), *ApiKey));
+
+    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+    JsonObject->SetStringField("model", "tts-1");
+    JsonObject->SetStringField("input", Text);
+    JsonObject->SetStringField("voice", "shimmer");
+    JsonObject->SetStringField("response_format", "wav");
+
+    FString RequestBody;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&RequestBody);
+    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+
+    Request->SetContentAsString(RequestBody);
+    Request->ProcessRequest();
+}
+
+
 void UAPIClient::AppendStringToArray(TArray<uint8>& Array, const FString& String)
 {
     FTCHARToUTF8 Converter(*String);
@@ -120,26 +156,19 @@ void UAPIClient::OnChatGPTResponseReceived(FHttpRequestPtr Request, FHttpRespons
     if (bWasSuccessful && Response.IsValid())
     {
         FString ResponseString = Response->GetContentAsString();
-        //UE_LOG(LogTemp, Log, TEXT("Response: %s"), *ResponseString);
 
         TSharedPtr<FJsonObject> JsonObject = Deserialize(ResponseString);
         TArray<TSharedPtr<FJsonValue>> Choices = JsonObject->GetArrayField((TEXT("choices")));
         if (!Choices.IsEmpty()) {
-            try {
-                TSharedPtr<FJsonObject> Choice = Choices[0]->AsObject();
-                TSharedPtr<FJsonObject> Message = Choice->GetObjectField(TEXT("message"));
-                FString Content = Message->GetStringField(TEXT("content"));
-                //UE_LOG(LogTemp, Log, TEXT("text: %s"), *Content);
+            
+            TSharedPtr<FJsonObject> Choice = Choices[0]->AsObject();
+            TSharedPtr<FJsonObject> Message = Choice->GetObjectField(TEXT("message"));
+            FString Content = Message->GetStringField(TEXT("content"));
 
-                TSharedPtr<FJsonObject> TextJson = Deserialize(Content);
-                FString response = TextJson->GetStringField(TEXT("response"));
+            TSharedPtr<FJsonObject> TextJson = Deserialize(Content);
+            FString response = TextJson->GetStringField(TEXT("response"));
                 
-                OnChatGPTResponse.Broadcast(response);
-
-            }
-            catch (...) {
-                UE_LOG(LogTemp, Error, TEXT("fail to find keywords"));
-            }
+            OnChatGPTResponse.Broadcast(response);
         }
     }
     else
@@ -153,7 +182,6 @@ void UAPIClient::OnWhisperResponseReceived(FHttpRequestPtr Request, FHttpRespons
     if (bWasSuccessful && Response.IsValid())
     {
         FString ResponseString = Response->GetContentAsString();
-        //UE_LOG(LogTemp, Log, TEXT("Response: %s"), *ResponseString);
 
         TSharedPtr<FJsonObject> JsonObject = Deserialize(ResponseString);
         FString Text = JsonObject->GetStringField(TEXT("text"));
@@ -165,6 +193,29 @@ void UAPIClient::OnWhisperResponseReceived(FHttpRequestPtr Request, FHttpRespons
         UE_LOG(LogTemp, Error, TEXT("Request failed"));
     }
 }
+
+void UAPIClient::OnTTSResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+{
+    if (bWasSuccessful && Response.IsValid())
+    {
+        TArray<uint8> ResponseData = Response->GetContent();
+        
+        FString FilePath = FPaths::ProjectContentDir() + TEXT("speech.wav");
+        if (FFileHelper::SaveArrayToFile(ResponseData, *FilePath)) {
+            UE_LOG(LogTemp, Log, TEXT("Saved speech audio to: %s"), *FilePath);
+            OnTTSResponse.Broadcast(FilePath);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("Failed to save speech audio"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Request failed"));
+    }
+}
+
 
 FString UAPIClient::LoadApiKeyFromFile()
 {
@@ -191,6 +242,44 @@ TSharedPtr<FJsonObject> UAPIClient::Deserialize(FString String) {
         return JsonObject;
     }
     else {
+        return nullptr;
+    }
+}
+
+USoundWaveProcedural* UAPIClient::LoadSoundWaveFromFile(const FString& FilePath)
+{
+    TArray<uint8> RawFileData;
+    if (!FFileHelper::LoadFileToArray(RawFileData, *FilePath))
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to load file: %s"), *FilePath);
+        return nullptr;
+    }
+
+
+    USoundWaveProcedural* SoundWave = NewObject<USoundWaveProcedural>(USoundWaveProcedural::StaticClass());
+    FWaveModInfo WaveInfo;
+    if (WaveInfo.ReadWaveInfo(RawFileData.GetData(), RawFileData.Num()))
+    {
+        int32 SampleRate = *WaveInfo.pSamplesPerSec;
+        int32 NumChannels = *WaveInfo.pChannels;
+        int32 DurationDiv = NumChannels * (*WaveInfo.pBitsPerSample / 8) * SampleRate;
+
+        SoundWave->DecompressionType = EDecompressionType::DTYPE_Procedural;
+
+        SoundWave->Duration = (float)WaveInfo.SampleDataSize / DurationDiv;
+        SoundWave->SetSampleRate(SampleRate);
+        SoundWave->NumChannels = NumChannels;
+        
+        SoundWave->QueueAudio(RawFileData.GetData(), RawFileData.Num());
+
+        SoundWave->SoundGroup = ESoundGroup::SOUNDGROUP_Default;
+        SoundWave->AddToRoot();
+
+        return SoundWave;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to read WAV info from file: %s"), *FilePath);
         return nullptr;
     }
 }
