@@ -120,7 +120,7 @@ void UAPIClient::OnChatGPTResponseReceived(FHttpRequestPtr Request, FHttpRespons
     if (bWasSuccessful && Response.IsValid())
     {
         FString ResponseString = Response->GetContentAsString();
-        UE_LOG(LogTemp, Log, TEXT("Response: %s"), *ResponseString);
+        //UE_LOG(LogTemp, Log, TEXT("Response: %s"), *ResponseString);
 
         TSharedPtr<FJsonObject> JsonObject = Deserialize(ResponseString);
         TArray<TSharedPtr<FJsonValue>> Choices = JsonObject->GetArrayField((TEXT("choices")));
@@ -129,8 +129,12 @@ void UAPIClient::OnChatGPTResponseReceived(FHttpRequestPtr Request, FHttpRespons
                 TSharedPtr<FJsonObject> Choice = Choices[0]->AsObject();
                 TSharedPtr<FJsonObject> Message = Choice->GetObjectField(TEXT("message"));
                 FString Content = Message->GetStringField(TEXT("content"));
+                //UE_LOG(LogTemp, Log, TEXT("text: %s"), *Content);
 
-                OnChatGPTResponse.Broadcast(Content);
+                TSharedPtr<FJsonObject> TextJson = Deserialize(Content);
+                FString response = TextJson->GetStringField(TEXT("response"));
+                
+                OnChatGPTResponse.Broadcast(response);
 
             }
             catch (...) {
@@ -153,7 +157,7 @@ void UAPIClient::OnWhisperResponseReceived(FHttpRequestPtr Request, FHttpRespons
 
         TSharedPtr<FJsonObject> JsonObject = Deserialize(ResponseString);
         FString Text = JsonObject->GetStringField(TEXT("text"));
-        
+
         OnWhisperResponse.Broadcast(Text);
     }
     else
