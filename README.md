@@ -1,14 +1,12 @@
 ## to do
 - [x] connect gpt
 - [x] character
-- [x] interaction
 - [x] environment (light, effect)
 - [x] npc
 - [x] voice recognition
 - [ ] tts
 - [x] lip sync
-- [ ] dynamic environment by reaction (light, effect, shape, BGM)
-
+- [ ] lip sync with tts
 
 ## Lipsync Plugin
 
