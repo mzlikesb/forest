@@ -24,7 +24,6 @@
 #include "OVRLipSyncPlaybackActorComponent.h"
 #include "AudioDevice.h"
 #include "AudioDecompress.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "OVRLipSyncContextWrapper.h"
 
 UAudioComponent *UOVRLipSyncPlaybackActorComponent::FindAutoplayAudioComponent() const
@@ -122,32 +121,6 @@ void UOVRLipSyncPlaybackActorComponent::SetPlaybackSequence(UOVRLipSyncFrameSequ
 
 
 // OVRLipSyncEditorModule에서 가져옴
-// Decompresses SoundWave object by initializing RawPCM data
-bool UOVRLipSyncPlaybackActorComponent::DecompressSoundWave(USoundWave *SoundWave)
-{
-	if (SoundWave->RawPCMData)
-	{
-		return true;
-	}
-	auto AudioDevice = GEngine->GetMainAudioDevice();
-	if (!AudioDevice)
-	{
-		return false;
-	}
-
-	AudioDevice->StopAllSounds(true);
-	auto OriginalDecompressionType = SoundWave->DecompressionType;
-	SoundWave->DecompressionType = DTYPE_Native;
-	if (SoundWave->InitAudioResource(SoundWave->GetRuntimeFormat()))
-	{
-		USoundWave::FAsyncAudioDecompress Decompress(SoundWave, MONO_PCM_BUFFER_SAMPLES);
-		Decompress.StartSynchronousTask();
-	}
-	SoundWave->DecompressionType = OriginalDecompressionType;
-
-	return true;
-}
-
 bool UOVRLipSyncPlaybackActorComponent::OVRLipSyncProcessSoundWave(TArray<uint8> RawFileData, bool UseOfflineModel)
 {
 	// SoundWave 안거치고 RawFileData로부터 바로 시퀀스 생성하기
@@ -188,14 +161,5 @@ bool UOVRLipSyncPlaybackActorComponent::OVRLipSyncProcessSoundWave(TArray<uint8>
 			ProcessedSequence->Add(NewVisemes, InLaughterScore);
 		}
 	}
-
-	if (!ProcessedSequence)
-	{
-		UE_LOG(LogTemp, Error, TEXT("ProcessedSequence is null"));
-		return false;
-	}
-	UE_LOG(LogTemp, Warning, TEXT("PCMDataSize: %d"), PCMDataSize);
-	UE_LOG(LogTemp, Warning, TEXT("Sequence length: %d"), ProcessedSequence->Num());
-	UE_LOG(LogTemp, Warning, TEXT("NewVisemes size: %d, LaughterScore: %f"), NewVisemes.Num(), LaughterScore);
 	return true;
 }

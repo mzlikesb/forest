@@ -71,6 +71,4 @@ protected:
 private:
 	FDelegateHandle PlaybackPercentHandle;
 	FDelegateHandle PlaybackFinishedHandle;
-
-	bool DecompressSoundWave(USoundWave *SoundWave);
 };

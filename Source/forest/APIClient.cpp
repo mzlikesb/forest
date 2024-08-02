@@ -5,10 +5,7 @@
 #include "Http.h"
 #include "Json.h"
 #include "JsonUtilities.h"
-#include "Misc/Paths.h"
-#include "Misc/FileHelper.h"
 #include "Sound/SoundWaveProcedural.h"
-#include <sstream> 
 
 UAPIClient::UAPIClient()
 {
@@ -253,7 +250,6 @@ TSharedPtr<FJsonObject> UAPIClient::Deserialize(FString String) {
 
 USoundWaveProcedural* UAPIClient::LoadSoundWaveFromFile(const FString& FilePath, TArray<uint8>& RawFileData)
 {
-    //TArray<uint8> RawFileData;
     if (!FFileHelper::LoadFileToArray(RawFileData, *FilePath))
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to load file: %s"), *FilePath);
