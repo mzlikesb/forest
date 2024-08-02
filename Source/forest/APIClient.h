@@ -29,7 +29,7 @@ public:
 	void SendTTSRequest(const FString& Text);
 	
 	UFUNCTION(BlueprintCallable)
-	USoundWaveProcedural* LoadSoundWaveFromFile(const FString& FilePath);
+	USoundWaveProcedural* LoadSoundWaveFromFile(const FString& FilePath, TArray<uint8>& RawFileData);
 
 	UPROPERTY(BlueprintAssignable)
 	FOnChatGPTResponse OnChatGPTResponse;
@@ -49,4 +49,5 @@ private:
 	FString LoadApiKeyFromFile();
 
 	TSharedPtr<FJsonObject> Deserialize(FString String);
+	bool ReconstructWavFile(TArray<uint8>& WavData);
 };

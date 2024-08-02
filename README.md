@@ -4,9 +4,9 @@
 - [x] environment (light, effect)
 - [x] npc
 - [x] voice recognition
-- [ ] tts
+- [x] tts
 - [x] lip sync
-- [ ] lip sync with tts
+- [x] lip sync with tts
 
 ## Lipsync Plugin
 

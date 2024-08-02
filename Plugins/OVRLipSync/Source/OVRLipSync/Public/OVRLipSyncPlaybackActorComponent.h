@@ -51,6 +51,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LipSync", Meta = (Tooltip = "Sets playback sequence property"))
 	void SetPlaybackSequence(UOVRLipSyncFrameSequence *InSequence);
 
+	UFUNCTION(BlueprintCallable)
+	bool OVRLipSyncProcessSoundWave(TArray<uint8> RawFileData, bool UseOfflineModel = false);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UOVRLipSyncFrameSequence *ProcessedSequence;
+
 protected:
 	// Returns audio Component associated with the same
 	UAudioComponent *FindAutoplayAudioComponent() const;
@@ -65,4 +71,6 @@ protected:
 private:
 	FDelegateHandle PlaybackPercentHandle;
 	FDelegateHandle PlaybackFinishedHandle;
+
+	bool DecompressSoundWave(USoundWave *SoundWave);
 };

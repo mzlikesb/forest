@@ -200,6 +200,11 @@ void UAPIClient::OnTTSResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr
     {
         TArray<uint8> ResponseData = Response->GetContent();
         
+        if (!ReconstructWavFile(ResponseData))
+        {
+            UE_LOG(LogTemp, Error, TEXT("Failed to reconstruct WAV data"));
+            return;
+        }
         FString FilePath = FPaths::ProjectContentDir() + TEXT("speech.wav");
         if (FFileHelper::SaveArrayToFile(ResponseData, *FilePath)) {
             UE_LOG(LogTemp, Log, TEXT("Saved speech audio to: %s"), *FilePath);
@@ -246,18 +251,18 @@ TSharedPtr<FJsonObject> UAPIClient::Deserialize(FString String) {
     }
 }
 
-USoundWaveProcedural* UAPIClient::LoadSoundWaveFromFile(const FString& FilePath)
+USoundWaveProcedural* UAPIClient::LoadSoundWaveFromFile(const FString& FilePath, TArray<uint8>& RawFileData)
 {
-    TArray<uint8> RawFileData;
+    //TArray<uint8> RawFileData;
     if (!FFileHelper::LoadFileToArray(RawFileData, *FilePath))
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to load file: %s"), *FilePath);
         return nullptr;
     }
 
-
     USoundWaveProcedural* SoundWave = NewObject<USoundWaveProcedural>(USoundWaveProcedural::StaticClass());
     FWaveModInfo WaveInfo;
+    
     if (WaveInfo.ReadWaveInfo(RawFileData.GetData(), RawFileData.Num()))
     {
         int32 SampleRate = *WaveInfo.pSamplesPerSec;
@@ -282,4 +287,30 @@ USoundWaveProcedural* UAPIClient::LoadSoundWaveFromFile(const FString& FilePath)
         UE_LOG(LogTemp, Error, TEXT("Failed to read WAV info from file: %s"), *FilePath);
         return nullptr;
     }
+}
+
+bool UAPIClient::ReconstructWavFile(TArray<uint8>& WavData)
+{
+    if (WavData.Num() < 44) // 최소 WAV 헤더 크기
+        return false;
+
+    // RIFF 청크
+    FMemory::Memcpy(WavData.GetData(), "RIFF", 4);
+    int32 FileSize = WavData.Num() - 8;
+    FMemory::Memcpy(WavData.GetData() + 4, &FileSize, 4);
+    FMemory::Memcpy(WavData.GetData() + 8, "WAVE", 4);
+
+    // fmt 하위 청크
+    FMemory::Memcpy(WavData.GetData() + 12, "fmt ", 4);
+    int32 SubChunk1Size = 16; // PCM의 경우
+    FMemory::Memcpy(WavData.GetData() + 16, &SubChunk1Size, 4);
+
+    // 기존 fmt 청크 데이터 유지 (20-35 바이트)
+
+    // data 하위 청크
+    FMemory::Memcpy(WavData.GetData() + 36, "data", 4);
+    int32 DataSize = WavData.Num() - 44;
+    FMemory::Memcpy(WavData.GetData() + 40, &DataSize, 4);
+
+    return true;
 }

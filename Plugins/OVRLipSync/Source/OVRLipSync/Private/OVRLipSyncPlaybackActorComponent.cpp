@@ -1,4 +1,4 @@
-/*******************************************************************************
+﻿/*******************************************************************************
  * Filename    :   OVRLipSyncPlaybackActorComponent.cpp
  * Content     :   OVRLipSync component for Actor objects
  * Created     :   Aug 9th, 2018
@@ -22,6 +22,10 @@
  ******************************************************************************/
 
 #include "OVRLipSyncPlaybackActorComponent.h"
+#include "AudioDevice.h"
+#include "AudioDecompress.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "OVRLipSyncContextWrapper.h"
 
 UAudioComponent *UOVRLipSyncPlaybackActorComponent::FindAutoplayAudioComponent() const
 {
@@ -114,4 +118,84 @@ void UOVRLipSyncPlaybackActorComponent::Stop()
 void UOVRLipSyncPlaybackActorComponent::SetPlaybackSequence(UOVRLipSyncFrameSequence *InSequence)
 {
 	Sequence = InSequence;
+}
+
+
+// OVRLipSyncEditorModule에서 가져옴
+// Decompresses SoundWave object by initializing RawPCM data
+bool UOVRLipSyncPlaybackActorComponent::DecompressSoundWave(USoundWave *SoundWave)
+{
+	if (SoundWave->RawPCMData)
+	{
+		return true;
+	}
+	auto AudioDevice = GEngine->GetMainAudioDevice();
+	if (!AudioDevice)
+	{
+		return false;
+	}
+
+	AudioDevice->StopAllSounds(true);
+	auto OriginalDecompressionType = SoundWave->DecompressionType;
+	SoundWave->DecompressionType = DTYPE_Native;
+	if (SoundWave->InitAudioResource(SoundWave->GetRuntimeFormat()))
+	{
+		USoundWave::FAsyncAudioDecompress Decompress(SoundWave, MONO_PCM_BUFFER_SAMPLES);
+		Decompress.StartSynchronousTask();
+	}
+	SoundWave->DecompressionType = OriginalDecompressionType;
+
+	return true;
+}
+
+bool UOVRLipSyncPlaybackActorComponent::OVRLipSyncProcessSoundWave(TArray<uint8> RawFileData, bool UseOfflineModel)
+{
+	// SoundWave 안거치고 RawFileData로부터 바로 시퀀스 생성하기
+	FWaveModInfo WaveInfo;
+	uint8 *waveData = const_cast<uint8 *>(RawFileData.GetData());
+	if (!WaveInfo.ReadWaveInfo(RawFileData.GetData(), RawFileData.Num()))
+	{
+		return false;
+	}
+	
+	constexpr auto LipSyncSequenceUpateFrequency = 100;
+	constexpr auto LipSyncSequenceDuration = 1.0f / LipSyncSequenceUpateFrequency;
+
+	int32 SampleRate = *WaveInfo.pSamplesPerSec;
+	int32 NumChannels = *WaveInfo.pChannels;
+	auto PCMDataSize = WaveInfo.SampleDataSize / sizeof(int16_t);
+	int16_t *PCMData = reinterpret_cast<int16_t *>(waveData + 44);
+	auto ChunkSizeSamples = static_cast<int>(SampleRate * LipSyncSequenceDuration);
+	auto ChunkSize = NumChannels * ChunkSizeSamples;
+
+	FString ModelPath = UseOfflineModel ? FPaths::Combine(FPaths::ProjectPluginsDir(), TEXT("OVRLipSync"),
+														  TEXT("OfflineModel"), TEXT("ovrlipsync_offline_model.pb"))
+										: FString();
+	
+	ProcessedSequence = NewObject<UOVRLipSyncFrameSequence>();
+	UOVRLipSyncContextWrapper context(ovrLipSyncContextProvider_Enhanced, SampleRate, 4096, ModelPath);
+
+	float InLaughterScore = 0.0f;
+	int32_t FrameDelayInMs = 0;
+	TArray<float> NewVisemes;
+
+	for (int offs = 0; offs < PCMDataSize - ChunkSize; offs += ChunkSize)
+	{
+		int remainingSamples = PCMDataSize - offs;
+		if (remainingSamples >= ChunkSize)
+		{
+			context.ProcessFrame(PCMData + offs, ChunkSizeSamples, NewVisemes, InLaughterScore, FrameDelayInMs, NumChannels > 1);
+			ProcessedSequence->Add(NewVisemes, InLaughterScore);
+		}
+	}
+
+	if (!ProcessedSequence)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ProcessedSequence is null"));
+		return false;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("PCMDataSize: %d"), PCMDataSize);
+	UE_LOG(LogTemp, Warning, TEXT("Sequence length: %d"), ProcessedSequence->Num());
+	UE_LOG(LogTemp, Warning, TEXT("NewVisemes size: %d, LaughterScore: %f"), NewVisemes.Num(), LaughterScore);
+	return true;
 }
