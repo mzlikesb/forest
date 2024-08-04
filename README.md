@@ -1,3 +1,5 @@
+[![](https://img.youtube.com/vi/tx0fL8DIIVU/0.jpg)](https://www.youtube.com/watch?v=tx0fL8DIIVU)
+
 ## to do
 - [x] connect gpt
 - [x] character
