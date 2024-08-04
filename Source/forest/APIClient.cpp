@@ -202,15 +202,7 @@ void UAPIClient::OnTTSResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr
             UE_LOG(LogTemp, Error, TEXT("Failed to reconstruct WAV data"));
             return;
         }
-        FString FilePath = FPaths::ProjectContentDir() + TEXT("speech.wav");
-        if (FFileHelper::SaveArrayToFile(ResponseData, *FilePath)) {
-            UE_LOG(LogTemp, Log, TEXT("Saved speech audio to: %s"), *FilePath);
-            OnTTSResponse.Broadcast(FilePath);
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("Failed to save speech audio"));
-        }
+        OnTTSResponse.Broadcast(ResponseData);
     }
     else
     {
@@ -248,14 +240,8 @@ TSharedPtr<FJsonObject> UAPIClient::Deserialize(FString String) {
     }
 }
 
-USoundWaveProcedural* UAPIClient::LoadSoundWaveFromFile(const FString& FilePath, TArray<uint8>& RawFileData)
+USoundWaveProcedural* UAPIClient::LoadSoundWave(const TArray<uint8>& RawFileData)
 {
-    if (!FFileHelper::LoadFileToArray(RawFileData, *FilePath))
-    {
-        UE_LOG(LogTemp, Error, TEXT("Failed to load file: %s"), *FilePath);
-        return nullptr;
-    }
-
     USoundWaveProcedural* SoundWave = NewObject<USoundWaveProcedural>(USoundWaveProcedural::StaticClass());
     FWaveModInfo WaveInfo;
     
@@ -280,7 +266,7 @@ USoundWaveProcedural* UAPIClient::LoadSoundWaveFromFile(const FString& FilePath,
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("Failed to read WAV info from file: %s"), *FilePath);
+        UE_LOG(LogTemp, Error, TEXT("Fail to Read WaveInfo from Raw Data"));
         return nullptr;
     }
 }

@@ -9,7 +9,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChatGPTResponse, const FString&, Text);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWhisperResponse, const FString&, Text);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTTSResponse, const FString&, Text);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTTSResponse, TArray<uint8>, Data);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FOREST_API UAPIClient : public UActorComponent
@@ -29,7 +29,7 @@ public:
 	void SendTTSRequest(const FString& Text);
 	
 	UFUNCTION(BlueprintCallable)
-	USoundWaveProcedural* LoadSoundWaveFromFile(const FString& FilePath, TArray<uint8>& RawFileData);
+	USoundWaveProcedural* LoadSoundWave(const TArray<uint8>& RawFileData);
 
 	UPROPERTY(BlueprintAssignable)
 	FOnChatGPTResponse OnChatGPTResponse;

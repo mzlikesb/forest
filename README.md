@@ -1,12 +1,17 @@
 ## to do
 - [x] connect gpt
 - [x] character
-- [x] environment (light, effect)
 - [x] npc
 - [x] voice recognition
 - [x] tts
 - [x] lip sync
 - [x] lip sync with tts
+- [x] build test
+
+## OpenAI API
+- Whisper-1
+- ChatGPT-mini-o
+- TTS-1
 
 ## Lipsync Plugin
 

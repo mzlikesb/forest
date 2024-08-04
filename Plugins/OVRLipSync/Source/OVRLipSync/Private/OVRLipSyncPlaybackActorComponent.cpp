@@ -130,22 +130,36 @@ bool UOVRLipSyncPlaybackActorComponent::OVRLipSyncProcessSoundWave(TArray<uint8>
 	{
 		return false;
 	}
-	
-	constexpr auto LipSyncSequenceUpateFrequency = 100;
-	constexpr auto LipSyncSequenceDuration = 1.0f / LipSyncSequenceUpateFrequency;
 
 	int32 SampleRate = *WaveInfo.pSamplesPerSec;
 	int32 NumChannels = *WaveInfo.pChannels;
 	auto PCMDataSize = WaveInfo.SampleDataSize / sizeof(int16_t);
-	int16_t *PCMData = reinterpret_cast<int16_t *>(waveData + 44);
+
+	int32 HeaderSize = WaveInfo.SampleDataStart - waveData;
+	int16_t *PCMData = reinterpret_cast<int16_t *>(waveData + HeaderSize);
+
+	constexpr auto LipSyncSequenceUpateFrequency = 100;
+	constexpr auto LipSyncSequenceDuration = 1.0f / LipSyncSequenceUpateFrequency;
 	auto ChunkSizeSamples = static_cast<int>(SampleRate * LipSyncSequenceDuration);
 	auto ChunkSize = NumChannels * ChunkSizeSamples;
+
+	if (PCMDataSize < ChunkSize)
+	{
+		UE_LOG(LogTemp, Error, TEXT("PCM data size is too small"));
+		return false;
+	}
 
 	FString ModelPath = UseOfflineModel ? FPaths::Combine(FPaths::ProjectPluginsDir(), TEXT("OVRLipSync"),
 														  TEXT("OfflineModel"), TEXT("ovrlipsync_offline_model.pb"))
 										: FString();
 	
 	ProcessedSequence = NewObject<UOVRLipSyncFrameSequence>();
+	if (!ProcessedSequence)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to create UOVRLipSyncFrameSequence"));
+		return false;
+	}
+
 	UOVRLipSyncContextWrapper context(ovrLipSyncContextProvider_Enhanced, SampleRate, 4096, ModelPath);
 
 	float InLaughterScore = 0.0f;
@@ -154,12 +168,10 @@ bool UOVRLipSyncPlaybackActorComponent::OVRLipSyncProcessSoundWave(TArray<uint8>
 
 	for (int offs = 0; offs < PCMDataSize - ChunkSize; offs += ChunkSize)
 	{
-		int remainingSamples = PCMDataSize - offs;
-		if (remainingSamples >= ChunkSize)
-		{
-			context.ProcessFrame(PCMData + offs, ChunkSizeSamples, NewVisemes, InLaughterScore, FrameDelayInMs, NumChannels > 1);
-			ProcessedSequence->Add(NewVisemes, InLaughterScore);
-		}
+		context.ProcessFrame(PCMData + offs, ChunkSizeSamples, NewVisemes, InLaughterScore, FrameDelayInMs,
+							 NumChannels > 1);
+		ProcessedSequence->Add(NewVisemes, InLaughterScore);
 	}
+
 	return true;
 }
