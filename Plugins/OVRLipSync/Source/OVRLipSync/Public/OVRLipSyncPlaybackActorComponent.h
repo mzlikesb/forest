@@ -29,7 +29,8 @@
 
 #include "OVRLipSyncPlaybackActorComponent.generated.h"
 
-UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFinishOVRLipSyncProcess, UOVRLipSyncFrameSequence*, Sequence);
+	UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class OVRLIPSYNC_API UOVRLipSyncPlaybackActorComponent : public UOVRLipSyncActorComponentBase
 {
 	GENERATED_BODY()
@@ -52,10 +53,13 @@ public:
 	void SetPlaybackSequence(UOVRLipSyncFrameSequence *InSequence);
 
 	UFUNCTION(BlueprintCallable)
-	bool OVRLipSyncProcessSoundWave(TArray<uint8> RawFileData, bool UseOfflineModel = false);
+	UOVRLipSyncFrameSequence* OVRLipSyncProcessSoundWave(TArray<uint8> RawFileData);
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	UOVRLipSyncFrameSequence *ProcessedSequence;
+	UFUNCTION(BlueprintCallable)
+	void OVRLipSyncProcessAsyc(TArray<uint8> RawFileData);
+
+	UPROPERTY(BlueprintAssignable)
+	FOnFinishOVRLipSyncProcess OnFinishOVRLipSyncProcess;
 
 protected:
 	// Returns audio Component associated with the same

@@ -120,15 +120,15 @@ void UOVRLipSyncPlaybackActorComponent::SetPlaybackSequence(UOVRLipSyncFrameSequ
 }
 
 
-// OVRLipSyncEditorModule에서 가져옴
-bool UOVRLipSyncPlaybackActorComponent::OVRLipSyncProcessSoundWave(TArray<uint8> RawFileData, bool UseOfflineModel)
+// OVRLipSyncEditorModule에서 가져와서 수정함
+UOVRLipSyncFrameSequence* UOVRLipSyncPlaybackActorComponent::OVRLipSyncProcessSoundWave(TArray<uint8> RawFileData)
 {
 	// SoundWave 안거치고 RawFileData로부터 바로 시퀀스 생성하기
 	FWaveModInfo WaveInfo;
 	uint8 *waveData = const_cast<uint8 *>(RawFileData.GetData());
 	if (!WaveInfo.ReadWaveInfo(RawFileData.GetData(), RawFileData.Num()))
 	{
-		return false;
+		return nullptr;
 	}
 
 	int32 SampleRate = *WaveInfo.pSamplesPerSec;
@@ -146,20 +146,17 @@ bool UOVRLipSyncPlaybackActorComponent::OVRLipSyncProcessSoundWave(TArray<uint8>
 	if (PCMDataSize < ChunkSize)
 	{
 		UE_LOG(LogTemp, Error, TEXT("PCM data size is too small"));
-		return false;
+		return nullptr;
 	}
 
-	FString ModelPath = UseOfflineModel ? FPaths::Combine(FPaths::ProjectPluginsDir(), TEXT("OVRLipSync"),
-														  TEXT("OfflineModel"), TEXT("ovrlipsync_offline_model.pb"))
-										: FString();
+	FString ModelPath =  FPaths::Combine(FPaths::ProjectPluginsDir(), TEXT("OVRLipSync"),TEXT("OfflineModel"), TEXT("ovrlipsync_offline_model.pb"));
 	
-	ProcessedSequence = NewObject<UOVRLipSyncFrameSequence>();
+	UOVRLipSyncFrameSequence* ProcessedSequence = NewObject<UOVRLipSyncFrameSequence>();
 	if (!ProcessedSequence)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to create UOVRLipSyncFrameSequence"));
-		return false;
+		return nullptr;
 	}
-
 	UOVRLipSyncContextWrapper context(ovrLipSyncContextProvider_Enhanced, SampleRate, 4096, ModelPath);
 
 	float InLaughterScore = 0.0f;
@@ -173,5 +170,25 @@ bool UOVRLipSyncPlaybackActorComponent::OVRLipSyncProcessSoundWave(TArray<uint8>
 		ProcessedSequence->Add(NewVisemes, InLaughterScore);
 	}
 
-	return true;
+	return ProcessedSequence;
+}
+
+void UOVRLipSyncPlaybackActorComponent::OVRLipSyncProcessAsyc(TArray<uint8> RawFileData)
+{
+	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask,
+		[this, RawFileData] { 
+			auto ProcessedSequence = OVRLipSyncProcessSoundWave(RawFileData);
+			AsyncTask(ENamedThreads::GameThread,
+				[this, ProcessedSequence]()
+				{ 
+					if (ProcessedSequence)
+					{
+						OnFinishOVRLipSyncProcess.Broadcast(ProcessedSequence);
+					}
+					else
+					{
+						UE_LOG(LogTemp, Error, TEXT("OVR LipSync Process Failed."));
+					}
+				});
+		});
 }
