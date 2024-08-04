@@ -1,5 +1,5 @@
 # 숲속의 친절한 욕쟁이 할머니
-[![](https://img.youtube.com/vi/tx0fL8DIIVU/0.jpg)](https://www.youtube.com/watch?v=tx0fL8DIIVU)
+[![](https://img.youtube.com/vi/zdzLgYsWagM/0.jpg)](https://www.youtube.com/watch?v=zdzLgYsWagM)
 
 ## OpenAI API
 - Whisper-1
