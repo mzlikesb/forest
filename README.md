@@ -1,14 +1,5 @@
+# 숲속의 친절한 욕쟁이 할머니
 [![](https://img.youtube.com/vi/tx0fL8DIIVU/0.jpg)](https://www.youtube.com/watch?v=tx0fL8DIIVU)
-
-## to do
-- [x] connect gpt
-- [x] character
-- [x] npc
-- [x] voice recognition
-- [x] tts
-- [x] lip sync
-- [x] lip sync with tts
-- [x] build test
 
 ## OpenAI API
 - Whisper-1
@@ -16,7 +7,6 @@
 - TTS-1
 
 ## Lipsync Plugin
-
 Oculus Lipsync Unreal Intergration v29
 https://developer.oculus.com/downloads/package/oculus-lipsync-unreal
 
