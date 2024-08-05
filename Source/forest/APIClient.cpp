@@ -90,20 +90,28 @@ void UAPIClient::SendWhisperRequest(const FString& AudioFilePath)
     FString BoundaryStart = FString::Printf(TEXT("--%s\r\n"), *Boundary);
     FString ContentDispositionFile = FString::Printf(TEXT("Content-Disposition: form-data; name=\"file\"; filename=\"%s\"\r\n"), *FPaths::GetCleanFilename(AudioFilePath));
     FString ContentType = "Content-Type: audio/wav\r\n\r\n";
-    FString BoundaryMiddle = FString::Printf(TEXT("\r\n--%s\r\n"), *Boundary);
+
+    FString BoundaryString = FString::Printf(TEXT("\r\n--%s\r\n"), *Boundary);
+
     FString ContentDisposition = "Content-Disposition: form-data; name=\"model\"\r\n\r\n";
     FString TranscriptionModel = "whisper-1";
-    FString BoundaryEnd = FString::Printf(TEXT("\r\n--%s--\r\n"), *Boundary);
+
+    FString ContentDispositionLanguage = "Content-Disposition: form-data; name=\"language\"\r\n\r\n";
+    FString Language = "ko";
+
 
     TArray<uint8> Data;
     AppendStringToArray(Data, BoundaryStart);
     AppendStringToArray(Data, ContentDispositionFile);
     AppendStringToArray(Data, ContentType);
     Data.Append(UpFileRawData);
-    AppendStringToArray(Data, BoundaryMiddle);
+    AppendStringToArray(Data, BoundaryString);
     AppendStringToArray(Data, ContentDisposition);
     AppendStringToArray(Data, TranscriptionModel);
-    AppendStringToArray(Data, BoundaryEnd);
+    AppendStringToArray(Data, BoundaryString);
+    AppendStringToArray(Data, ContentDispositionLanguage);
+    AppendStringToArray(Data, Language);
+    AppendStringToArray(Data, BoundaryString);
 
     Request->SetContent(Data);
 
@@ -157,16 +165,32 @@ void UAPIClient::OnChatGPTResponseReceived(FHttpRequestPtr Request, FHttpRespons
         TSharedPtr<FJsonObject> JsonObject = Deserialize(ResponseString);
         TArray<TSharedPtr<FJsonValue>> Choices = JsonObject->GetArrayField((TEXT("choices")));
         if (!Choices.IsEmpty()) {
-            
+
             TSharedPtr<FJsonObject> Choice = Choices[0]->AsObject();
             TSharedPtr<FJsonObject> Message = Choice->GetObjectField(TEXT("message"));
             FString Content = Message->GetStringField(TEXT("content"));
+            if (!Content.IsEmpty()) {
+                TSharedPtr<FJsonObject> TextJson = Deserialize(Content);
+                FString response = TextJson->GetStringField(TEXT("response"));
+                if (!response.IsEmpty()) {
+                    OnChatGPTResponse.Broadcast(response, true);
+                }
+                else {
+                    UE_LOG(LogTemp, Error, TEXT("has not 'response' field : %s"), *ResponseString);
 
-            TSharedPtr<FJsonObject> TextJson = Deserialize(Content);
-            FString response = TextJson->GetStringField(TEXT("response"));
-                
-            OnChatGPTResponse.Broadcast(response);
+                    OnChatGPTResponse.Broadcast(ResponseString, false);
+                }
+            }
+            else {
+
+                OnChatGPTResponse.Broadcast(ResponseString, false);
+            }
         }
+        else {
+
+            OnChatGPTResponse.Broadcast(ResponseString, false);
+        }
+
     }
     else
     {
@@ -182,12 +206,13 @@ void UAPIClient::OnWhisperResponseReceived(FHttpRequestPtr Request, FHttpRespons
 
         TSharedPtr<FJsonObject> JsonObject = Deserialize(ResponseString);
         FString Text = JsonObject->GetStringField(TEXT("text"));
-
-        OnWhisperResponse.Broadcast(Text);
+        
+        OnWhisperResponse.Broadcast(Text, true);
     }
     else
     {
         UE_LOG(LogTemp, Error, TEXT("Request failed"));
+        OnWhisperResponse.Broadcast("", false);
     }
 }
 
@@ -200,13 +225,14 @@ void UAPIClient::OnTTSResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr
         if (!ReconstructWavFile(ResponseData))
         {
             UE_LOG(LogTemp, Error, TEXT("Failed to reconstruct WAV data"));
-            return;
+            OnTTSResponse.Broadcast(TArray<uint8>(), false);
         }
-        OnTTSResponse.Broadcast(ResponseData);
+        OnTTSResponse.Broadcast(ResponseData, true);
     }
     else
     {
         UE_LOG(LogTemp, Error, TEXT("Request failed"));
+        OnTTSResponse.Broadcast(TArray<uint8>(), false);
     }
 }
 

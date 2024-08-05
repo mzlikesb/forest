@@ -7,9 +7,9 @@
 #include "Components/ActorComponent.h"
 #include "APIClient.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChatGPTResponse, const FString&, Text);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWhisperResponse, const FString&, Text);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTTSResponse, TArray<uint8>, Data);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChatGPTResponse, const FString&, Text, bool, bWasSuccessful);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWhisperResponse, const FString&, Text, bool, bWasSuccessful);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTTSResponse, TArray<uint8>, Data, bool, bWasSuccessful);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FOREST_API UAPIClient : public UActorComponent
